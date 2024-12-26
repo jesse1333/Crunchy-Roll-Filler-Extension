@@ -1,0 +1,12 @@
+#hello-world-banner {
+  background-color: #f39c12;
+  color: white;
+  text-align: center;
+  padding: 10px;
+  font-size: 20px;
+  font-family: Arial, sans-serif;
+  position: fixed;
+  top: 0;
+  width: 100%;
+  z-index: 9999;
+}
