@@ -1,16 +1,25 @@
 {
-   "manifest_version": 3,
-   "name": "Hello World on Crunchyroll",
-   "version": "1.0",
-   "description": "Displays 'Hello World' on Crunchyroll.",
-   "permissions": ["activeTab", "scripting"],
-   "host_permissions": ["https://www.crunchyroll.com/*"],
-   "content_scripts": [
-     {
-       "matches": ["https://www.crunchyroll.com/*"],
-       "js": ["content.js"],
-       "css": ["styles.css"]
-     }
-   ]
- }
- 
+  "manifest_version": 3,
+  "name": "Anime Filler Checker",
+  "version": "1.0",
+  "description": "Shows which episodes are fillers on Crunchyroll",
+  "permissions": [
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "*://*.crunchyroll.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["*://*.crunchyroll.com/*"],
+      "js": ["content.js"],
+      "css": ["styles.css"],
+      "run_at": "document_end",
+      "all_frames": true
+    }
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self';"
+  }
+}

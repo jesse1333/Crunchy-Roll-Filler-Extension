@@ -1,12 +1,20 @@
+// styles.css
 .episode-banner {
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   padding: 5px;
-  background-color: green; /* or red for filler */
   color: white;
   text-align: center;
   font-weight: bold;
   z-index: 10;
+}
+
+.canon-banner {
+  background-color: #4caf50;
+}
+
+.filler-banner {
+  background-color: #f44336;
 }
