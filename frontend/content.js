@@ -1,136 +1,249 @@
-// Import required modules
-const { Pool } = require("pg");
-const stringSimilarity = require("string-similarity");
-
-// PostgreSQL connection setup
-const db = new Pool({
-  database: "d8id4egncg0qi",
-  user: "uevj4j57oum2ms",
-  password: "p1647359b7b9e0585f410d5c511cb70cb3332a881209541503c8e899c1beabc08",
-  host: "c3nv2ev86aje4j.cluster-czrs8kj4isg7.us-east-1.rds.amazonaws.com",
-});
-
-// Function to add banners to episode cards
-async function addEpisodeBanners() {
-  // Select all episode cards
-  const cards = document.querySelectorAll(".playable-card--GnRbX");
-
-  if (cards.length === 0) {
-    console.log("No episode cards found!");
-    return;
-  }
-
-  cards.forEach(async (card) => {
-    // Check if banner already exists
-    if (card.querySelector(".episode-banner")) return;
-
-    // Find the series title
-    const seriesTitleElement = card.querySelector(
-      ".playable-card__body-aligner---Vepg .playable-card__show-title-wrapper--kIrAB small"
-    );
-    if (!seriesTitleElement) return; // Skip if series title not found
-    const seriesTitle = seriesTitleElement.textContent.trim();
-
-    // Find the episode title
-    const episodeTitleElement = card.querySelector(
-      ".playable-card__body-aligner---Vepg .text--gq6o- .playable-card__title--rgmp7"
-    );
-    if (!episodeTitleElement) return; // Skip if episode title not found
-    const episodeTitle = episodeTitleElement.textContent.trim();
-
-    // Fetch episode type from the database
-    const episodeType = await getEpisodeType(seriesTitle, episodeTitle);
-    if (!episodeType) return; // Skip if no match found in the database
-
-    // Create the banner element
-    const banner = document.createElement("div");
-    banner.textContent =
-      episodeType === "Canon" ? "Canon Episode" : "Filler Episode";
-    banner.classList.add("episode-banner"); // Add a class for CSS styling
-    banner.style.position = "absolute";
-    banner.style.top = "0";
-    banner.style.left = "0";
-    banner.style.width = "100%";
-    banner.style.padding = "5px";
-    banner.style.backgroundColor = episodeType === "Canon" ? "green" : "red";
-    banner.style.color = "white";
-    banner.style.textAlign = "center";
-    banner.style.fontWeight = "bold";
-    banner.style.zIndex = "10";
-
-    // Append the banner to the card
-    card.style.position = "relative"; // Ensure the card is positioned for absolute positioning
-    card.appendChild(banner);
-  });
+// Normalize Episode Names
+function normalizeEpisodeName(episodeName) {
+  console.log("Normalizing episode name:", episodeName);
+  const normalizedName = episodeName
+    .replace(/^S\d+\s*E\d+\s*-*\s*/i, "")
+    .replace(/^E\d+\s*-*\s*/i, "")
+    .trim();
+  console.log("Normalized to:", normalizedName);
+  return normalizedName;
 }
 
-// Function to fetch episode type from the database
-async function getEpisodeType(seriesTitle, episodeTitle) {
-  try {
-    const query = `
-            SELECT series_name, episode_title, episode_type 
-            FROM anime_fillers
-        `;
-    const result = await db.query(query);
+// Send Series Data
+async function processSeriesData(
+  wrapperClass,
+  seriesNameClass,
+  episodeNameClass
+) {
+  console.log(document.documentElement.outerHTML);
+  const imageWrappers = document.querySelectorAll(wrapperClass);
+  console.log("Found image wrappers:", imageWrappers.length);
+  console.log("Looked for " + wrapperClass);
+  let bannerType = 0;
 
-    if (result.rows.length === 0) {
-      console.log("No data found in the database.");
-      return null;
+  for (const wrapper of imageWrappers) {
+    let seriesNameElement;
+    let episodeElement;
+
+    let seriesName;
+    let episodeName;
+
+    if (wrapperClass == ".playable-card-hover__body--PYTVW") {
+      seriesNameElement = wrapper.querySelector(seriesNameClass);
+      episodeElement = wrapper.querySelector(episodeNameClass);
+
+      seriesName = seriesNameElement?.textContent;
+      episodeName = episodeElement?.textContent?.trim();
+      bannerType = 1;
+    } else if (wrapperClass == ".playable-card-mini-static--WU--V") {
+      console.log("VERSION TWO");
+      seriesNameElement = document.querySelector(
+        "h4.text--gq6o-.text--is-fixed-size--5i4oU.text--is-semibold--AHOYN.text--is-l--iccTo"
+      );
+      episodeElement = wrapper.querySelector(episodeNameClass);
+
+      seriesName = seriesNameElement.textContent.trim();
+      episodeName = episodeElement.getAttribute("title");
+
+      console.log(seriesName);
+      console.log(episodeName);
+      bannerType = 2;
     }
 
-    // Lowercase and clean the input
-    const cleanedSeriesTitle = seriesTitle.toLowerCase().trim();
-    const cleanedEpisodeTitle = episodeTitle
-      .toLowerCase()
-      .trim()
-      .replace(/^s\d+\se\d+\s-\s/i, "");
+    if (!seriesName || !episodeName) {
+      console.warn("Missing series name or episode name. Skipping...");
+      continue;
+    }
 
-    let bestMatch = null;
-    let bestScore = 0;
+    const normalizedEpisodeName = normalizeEpisodeName(episodeName);
 
-    for (const row of result.rows) {
-      const dbSeriesTitle = row.series_name.toLowerCase().trim();
-      const dbEpisodeTitle = row.episode_title.toLowerCase().trim();
+    console.log({
+      seriesName,
+      normalizedEpisodeName,
+    });
 
-      // Calculate similarity scores
-      const seriesSimilarity = stringSimilarity.compareTwoStrings(
-        cleanedSeriesTitle,
-        dbSeriesTitle
-      );
-      const episodeSimilarity = stringSimilarity.compareTwoStrings(
-        cleanedEpisodeTitle,
-        dbEpisodeTitle
-      );
-
-      // Check if both scores meet the 80% threshold
-      if (seriesSimilarity >= 0.8 && episodeSimilarity >= 0.8) {
-        const combinedScore = seriesSimilarity + episodeSimilarity;
-
-        // Keep track of the best match based on the highest combined score
-        if (combinedScore > bestScore) {
-          bestScore = combinedScore;
-          bestMatch = row.episode_type;
+    try {
+      const response = await fetch(
+        "https://ec2-3-145-8-251.us-east-2.compute.amazonaws.com:8080/series",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            seriesName,
+            episodeName: normalizedEpisodeName,
+          }),
         }
-      }
-    }
+      );
 
-    return bestMatch;
-  } catch (error) {
-    console.error("Error querying the database:", error);
-    return null;
+      const textResponse = await response.text();
+      let data;
+
+      try {
+        data = JSON.parse(textResponse);
+        console.log("Server response:", data);
+
+        if (data.episodeType) {
+          console.log(
+            "CREATING BANNER FOR: " + seriesName + " WITH " + data.episodeType
+          );
+          createBanner(wrapper, data.episodeType, bannerType);
+        }
+      } catch (parseError) {
+        console.log("Server message (non-JSON):", textResponse);
+      }
+    } catch (error) {
+      console.error("Network error:", error);
+    }
   }
 }
 
-// Observe DOM changes for dynamic loading
+// Create Banners
+function createBanner(wrapper, episodeType, bannerType) {
+  if (wrapper.querySelector(".episode-banner")) return;
+
+  const banner = document.createElement("div");
+  banner.classList.add("episode-banner");
+
+  banner.style.position = "absolute";
+  banner.style.top = "0";
+  banner.style.left = "50%";
+  banner.style.width = "50%";
+  banner.style.padding = "3px";
+  banner.style.color = "white";
+  banner.style.textAlign = "center";
+  banner.style.fontWeight = "bold";
+  banner.style.zIndex = "10";
+  banner.style.fontSize = "11px";
+  banner.style.height = "18px";
+  banner.style.lineHeight = "12px";
+
+  if (bannerType == 2) {
+    console.log("BANNER TYPE");
+    banner.style.left = "0%";
+    banner.style.width = "20%";
+  }
+
+  switch (episodeType) {
+    case 1:
+      banner.style.backgroundColor = "#2ecc71";
+      if (bannerType == 1) {
+        banner.textContent = `Manga Canon`;
+        banner.style.left = "50%";
+      } else if (bannerType == 2) {
+        banner.textContent = `Canon (M)`;
+        banner.style.removeProperty("left");
+        banner.style.right = "0%";
+        banner.style.width = "20%";
+      }
+      break;
+    case 2:
+      banner.style.backgroundColor = "#3498db";
+      if (bannerType == 1) {
+        banner.textContent = `Anime Canon`;
+        banner.style.left = "50%";
+      } else if (bannerType == 2) {
+        banner.textContent = `Canon (A)`;
+        banner.style.removeProperty("left");
+        banner.style.right = "0%";
+        banner.style.width = "20%";
+      }
+      break;
+    case 3:
+      banner.textContent = `Mixed`;
+      banner.style.backgroundColor = "#e67e22";
+      if (bannerType == 1) {
+        banner.style.left = "70%";
+        banner.style.width = "30%";
+      } else if (bannerType == 2) {
+        banner.style.removeProperty("left");
+        banner.style.right = "0%";
+        banner.style.width = "20%";
+      }
+      break;
+    case 4:
+      banner.textContent = `Filler`;
+      banner.style.backgroundColor = "#e74c3c";
+      if (bannerType == 1) {
+        banner.style.left = "70%";
+        banner.style.width = "30%";
+      } else if (bannerType == 2) {
+        banner.style.removeProperty("left");
+        banner.style.right = "0%";
+        banner.style.width = "20%";
+      }
+      break;
+    default:
+      return;
+  }
+
+  wrapper.style.position = "relative";
+  wrapper.appendChild(banner);
+}
+
+// Fetch URLs (Calls ProcessSeriesData)
+function fetchFillersURL() {
+  const currentURL = window.location.href;
+
+  if (
+    currentURL === "https://www.crunchyroll.com/" ||
+    currentURL.startsWith("https://www.crunchyroll.com/series/")
+  ) {
+    processSeriesData(
+      ".playable-card-hover__body--PYTVW",
+      ".playable-card-hover__secondary-title-link--Exdsq small",
+      "h4"
+    );
+  } else if (currentURL.startsWith("https://www.crunchyroll.com/watch/")) {
+    processSeriesData(
+      ".playable-card-mini-static--WU--V",
+      "NULL",
+      ".playable-card-mini-static__link--UOJQm"
+    );
+  }
+}
+
+// Detect URLs 
+function handlePageNavigation() {
+  const currentURL = window.location.href;
+  console.log("URL changed:", currentURL);
+
+  if (
+    currentURL === "https://www.crunchyroll.com/" ||
+    currentURL.startsWith("https://www.crunchyroll.com/series/")
+  ) {
+    fetchFillersURL();
+  } else if (currentURL.startsWith("https://www.crunchyroll.com/watch/")) {
+    fetchFillersURL();
+  }
+}
+
+window.addEventListener("popstate", handlePageNavigation);
+window.addEventListener("pushState", handlePageNavigation);
+window.addEventListener("replaceState", handlePageNavigation);
+
 const observer = new MutationObserver(() => {
-  addEpisodeBanners();
+  handlePageNavigation();
 });
 
-// Start observing the document body
 observer.observe(document.body, {
   childList: true,
   subtree: true,
 });
 
-// Run the function initially in case the cards are already loaded
-addEpisodeBanners();
+document.addEventListener("DOMContentLoaded", () => {
+  console.log("DOMContentLoaded event triggered");
+  fetchFillersURL();
+});
+
+console.log("Script end reached, executing fetchFillersURL");
+fetchFillersURL();
+
+const homeButton = document.querySelector("#home-button");
+
+if (homeButton) {
+  homeButton.addEventListener("click", function () {
+    window.location.reload();
+  });
+}
