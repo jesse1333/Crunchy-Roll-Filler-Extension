@@ -9,11 +9,7 @@
   </tr>
 </table>
 
-
-
-https://github.com/user-attachments/assets/f7048880-a628-49f0-8441-428cdce6716d
-
-
+https://github.com/user-attachments/assets/8539ee3d-84f5-4ba5-9d12-e41d2786f08a
 
 ## How It's Made:
 
