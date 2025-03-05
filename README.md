@@ -9,6 +9,12 @@
   </tr>
 </table>
 
+
+
+https://github.com/user-attachments/assets/f7048880-a628-49f0-8441-428cdce6716d
+
+
+
 ## How It's Made:
 
 **Tech used:** Node.js, JavaScript, AWS EC2, AWS RDS, Postgres, BeautifulSoup, Psycopg2
